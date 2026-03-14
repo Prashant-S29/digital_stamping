@@ -38,21 +38,17 @@ class Message(Base):
         "users.id"), nullable=False)
     recipient_id = Column(UUID(as_uuid=True),
                           ForeignKey("users.id"), nullable=False)
-    encrypted_body = Column(Text, nullable=False)      # AES-256 encrypted
-    # AES key encrypted with recipient RSA public key
+    encrypted_body = Column(Text, nullable=False)
     encrypted_aes_key = Column(Text, nullable=False)
-    iv = Column(String(64), nullable=False)  # AES initialization vector
-    message_hash = Column(String(64), nullable=False)  # SHA-256 of raw body
-    stamp_id = Column(UUID(as_uuid=True), ForeignKey(
-        "stamps.id"), nullable=True)
+    iv = Column(String(64), nullable=False)
+    message_hash = Column(String(64), nullable=False)
     created_at = Column(DateTime(timezone=True), default=now_utc)
 
-    sender = relationship("User",  foreign_keys=[
+    sender = relationship("User", foreign_keys=[
                           sender_id],    back_populates="sent_messages")
-    recipient = relationship("User",  foreign_keys=[
+    recipient = relationship("User", foreign_keys=[
                              recipient_id], back_populates="received_messages")
-    stamp = relationship("Stamp", foreign_keys=[
-                         stamp_id],     back_populates="message", uselist=False)
+    stamp = relationship("Stamp", back_populates="message", uselist=False)
     spread = relationship("MessageSpread", back_populates="message")
 
 
@@ -65,15 +61,13 @@ class Stamp(Base):
     sender_id = Column(UUID(as_uuid=True), ForeignKey(
         "users.id"),    nullable=False)
     origin_ip = Column(String(64),  nullable=True)
-    origin_device = Column(Text,        nullable=True)   # user-agent string
+    origin_device = Column(Text,        nullable=True)
     timestamp = Column(DateTime(timezone=True), default=now_utc)
-    rsa_signature = Column(Text,        nullable=False)  # base64 RSA signature
-    # which block on the chain
+    rsa_signature = Column(Text,        nullable=False)
     block_index = Column(Integer,     nullable=True)
     is_verified = Column(Boolean,     default=False)
 
-    message = relationship("Message", foreign_keys=[
-                           message_id], back_populates="stamp")
+    message = relationship("Message", back_populates="stamp")
     sender = relationship("User",    back_populates="stamps")
 
 

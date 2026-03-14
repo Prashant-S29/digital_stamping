@@ -1,3 +1,4 @@
+from api.auth import auth_bp
 import os
 
 from config import config
@@ -24,8 +25,7 @@ def health():
 # ---------------------------------------------------------------------------
 
 # M2 — Auth (uncomment when M2 is complete)
-# from api.auth import auth_bp
-# app.register_blueprint(auth_bp, url_prefix="/api/v1/auth")
+app.register_blueprint(auth_bp, url_prefix="/api/v1/auth")
 
 # M3 — Blockchain routes (uncomment when M3 is complete)
 # from api.blockchain_routes import blockchain_bp
