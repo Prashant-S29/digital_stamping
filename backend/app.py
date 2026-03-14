@@ -1,3 +1,4 @@
+from api.messages import messages_bp
 from api.blockchain_routes import blockchain_bp
 from database.blockchain_store import load_chain, save_block
 from blockchain.blockchain import Blockchain
@@ -48,8 +49,7 @@ app.register_blueprint(blockchain_bp, url_prefix="/api/v1/blockchain")
 
 
 # M6 — Messages (uncomment when M6 is complete)
-# from api.messages import messages_bp
-# app.register_blueprint(messages_bp, url_prefix="/api/v1/messages")
+app.register_blueprint(messages_bp, url_prefix="/api/v1/messages")
 
 # M7 — Verify (uncomment when M7 is complete)
 # from api.verify import verify_bp
