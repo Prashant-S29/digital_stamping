@@ -1,0 +1,1 @@
+# Stamping package — implemented in M4 and M5
