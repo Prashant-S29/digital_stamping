@@ -1,3 +1,4 @@
+from api.verify import verify_bp
 from api.messages import messages_bp
 from api.blockchain_routes import blockchain_bp
 from database.blockchain_store import load_chain, save_block
@@ -28,7 +29,7 @@ def health():
 # Blueprints — registered as milestones are completed
 # ---------------------------------------------------------------------------
 
-# M2 — Auth (uncomment when M2 is complete)
+# M2 — Auth
 app.register_blueprint(auth_bp, url_prefix="/api/v1/auth")
 
 # M3 — Blockchain routes
@@ -48,12 +49,11 @@ with app.app_context():
 app.register_blueprint(blockchain_bp, url_prefix="/api/v1/blockchain")
 
 
-# M6 — Messages (uncomment when M6 is complete)
+# M6 — Messages
 app.register_blueprint(messages_bp, url_prefix="/api/v1/messages")
 
-# M7 — Verify (uncomment when M7 is complete)
-# from api.verify import verify_bp
-# app.register_blueprint(verify_bp, url_prefix="/api/v1/verify")
+# M7 — Verify
+app.register_blueprint(verify_bp, url_prefix="/api/v1/verify")
 
 
 # ---------------------------------------------------------------------------

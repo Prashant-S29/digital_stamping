@@ -171,3 +171,168 @@ curl -s http://localhost:5000/api/v1/messages/inbox \
     }
 ]
 prashantsingh@helloworld:~/prashant_workspace/gigs/skit/digital_stamping$ 
+
+
+
+
+
+prashantsingh@helloworld:~/prashant_workspace/gigs/skit/digital_stamping$ 
+
+
+prashantsingh@helloworld:~/prashant_workspace/gigs/skit/digital_stamping$ 
+# Verify the message Alice sent to Bob (alice token)
+curl -s http://localhost:5000/api/v1/verify/7c909254-4f53-4957-ae65-d09e0e8c536c \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiM2M3MzVlMDMtNDZiOC00YmFkLWIxOTUtNDU4ZTA2NjdmMTNkIiwiZW1haWwiOiJhbGljZUB0ZXN0LmNvbSIsImV4cCI6MTc3MzU4MDIwMn0.PFIk9ayPGAiAVT_vlgz4YAKt2YmWkDd6p-Nld8fJHp4" \
+  | python3 -m json.tool
+bash: prashantsingh@helloworld:~/prashant_workspace/gigs/skit/digital_stamping$: No such file or directory
+{
+    "checks": {
+        "block_valid": true,
+        "chain_hash_match": true,
+        "chain_valid": true,
+        "signature_valid": false
+    },
+    "message_hash": "28591cfa232a7bc550079c2f30ea5a89967a4399e52f59f13556146e92e6fc5f",
+    "message_id": "7c909254-4f53-4957-ae65-d09e0e8c536c",
+    "stamp": {
+        "block_index": 1,
+        "origin_device": "curl/8.5.0",
+        "origin_ip": "127.0.0.1",
+        "sender_email": "alice@test.com",
+        "sender_id": "3c735e03-46b8-4bad-b195-458e0667f13d",
+        "stamp_id": "5830475d-bf45-4a93-ae1c-e9b155b6f669",
+        "timestamp": "2026-03-14T18:57:30.776235+05:30"
+    },
+    "verdict": "TAMPERED"
+}
+prashantsingh@helloworld:~/prashant_workspace/gigs/skit/digital_stamping$ ^C
+prashantsingh@helloworld:~/prashant_workspace/gigs/skit/digital_stamping$ ^C
+prashantsingh@helloworld:~/prashant_workspace/gigs/skit/digital_stamping$ 
+
+
+
+prashantsingh@helloworld:~/prashant_workspace/gigs/skit/digital_stamping$ 
+# Spread map
+curl -s http://localhost:5000/api/v1/verify/spread/7c909254-4f53-4957-ae65-d09e0e8c536c \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiM2M3MzVlMDMtNDZiOC00YmFkLWIxOTUtNDU4ZTA2NjdmMTNkIiwiZW1haWwiOiJhbGljZUB0ZXN0LmNvbSIsImV4cCI6MTc3MzU4MDIwMn0.PFIk9ayPGAiAVT_vlgz4YAKt2YmWkDd6p-Nld8fJHp4" \
+  | python3 -m json.tool
+{
+    "message_id": "7c909254-4f53-4957-ae65-d09e0e8c536c",
+    "origin": "alice@test.com",
+    "spread": [
+        {
+            "action": "SEND",
+            "block_index": 1,
+            "from_user": null,
+            "hop": 0,
+            "timestamp": "2026-03-14T18:57:30.773579+05:30",
+            "to_user": "alice@test.com"
+        }
+    ],
+    "total_hops": 0
+}
+prashantsingh@helloworld:~/prashant_workspace/gigs/skit/digital_stamping$ 
+
+
+prashantsingh@helloworld:~/prashant_workspace/gigs/skit/digital_stamping$ 
+curl -s -X POST http://localhost:5000/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"carol@test.com","username":"Carol","password":"password123"}' \
+  | python3 -m json.tool
+{
+    "message": "User registered successfully",
+    "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCmwN1128AHS/V/\nnHBz7hAZzacJz3iRl7FqG+96EtElcrnkmrEBZDQBC4NeYdQE1ccLKW1aSjcuwkGx\nNV4+AKm7mx+dkv4/VOGmiH1QDDS4MXdk9nAyLIp9xXGJcpmrkc1004MMBQdmQgMI\npWcTgzoF8BFf5K/BAffbL2DNOjCLOX/xbMtEkCkI5sEWf2U7MNAinBQEBknw0WOK\nwBq+AiVGylEwqi9zzK/HLrPdiepeILTf6YOcuq275w1Nukm3+OiSlJLmBNzicbXA\nSFq1DxYZyl+xnhGs8SsUHpj5U0EHM7eXvgNtIqfbEMhKmHAKv8Grxd7EiI7atXOk\nfxKG3SpFAgMBAAECggEAMTLmJEfZuE1o+WWmqA2tIm/SwMo9wHcJGU10soeqvWnD\n/vbFEqwFy+khsU8bxvFr8JcgdGtBLMKTrz0XuSNo8Lkr8snTycu5Z/ENR/jR9SZj\nG566K5OIqOMARJVTUZOLEtT07S7up/UCACMM7mzhSa8y8R//2upBvqGT5fktKWYr\nZwj9FUFBIouiilRca3Z7JU9eX4+r22xOkzaLVyBlGT+voPAlcbuiwQ0O6yHqlGBc\nFBICHfpGCu4xMV9B4drVFap7x/RPj3fkxHYzlFKwQS0Rg+77mjdyYItseySMBXl+\n2CufdxEUOuIVQvO8Xtk1Da8WhJrgS/TpGupg+JCtYQKBgQDd2YxKjKFmkF6M9P4+\n8lAk1NVZ3oIx7ovWQOWnLKbwnSZXlhJBgEDUQlkK6h0KZQFyJfgBXYfZdKY5AMn8\nRzi/AkRAFMvACZ2wf3EnwIX2hSqe3NgZqolfn7VTNKIGQGGbzL/wf7x3uxuw274A\n0O8JzZX+5Z4vY0rNxP9ZMokvMwKBgQDAbCDYcMdhS49xzRqIeLajhY+aEWryQvwE\n+vvVkkKTwPwV+zE2RHPBS6Row1QDy6UiC6FaomJVHBbU8RpqBeypStabO1mirOFP\nVk1mtwVonJpr+pQxt8zHN9ssDLOtPttfPVl8ERX3MfxKvF7x5HqOeCJ5MFjHYszD\n9KLWNKMgpwKBgE6UGMHrD9wRNLw+prNLBqIVFMCxNHJVKQipke5lvXeqYgNR74Nt\n1wiXu4xHIiQlZJ623iI1q8GVNK8qHWETJQFa3yvHcefCQC1c5oqLAagwwMjmNlDY\n+7F4EzS2htEqCqixnCamR+4swwEgxCrr1k8ll4RidmYYiE1cAonogXjLAoGBALX3\nizgjruj7o7Ni2uyj+1O4QozYW+KuJdYv42ec4QkJP1sqKOfA5BavidLopNLSCl+f\nz/7+AS+rWIwXVXteDugptbkm7yU/h/KXEqtH+P1s2zuxw+Mgha7/y2xktqXnA12V\njsIdBkC2LHggm0j1YFDKmw8wAUTM0gedmUAolvuRAoGBANtQViEvqdGGSaKQi5Lk\n2ZEyN77FOsK61YlsvQHsw8Xetw84yGli80TO6gllColHogZtYcvk/IiuS34sF7QV\nN/jO+0y4A/CM/JO32bmLQI6NizYuc1M9sSgZ9r/vQDGHH2mpngzSu5FcFKo3dUgu\nLs7W0/u+9KCu+Vc6O3U/FjFk\n-----END PRIVATE KEY-----\n",
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiYmE2MDcxOTAtZGJjMy00MzBkLThkY2EtZTdhN2U2M2U5MWU5IiwiZW1haWwiOiJjYXJvbEB0ZXN0LmNvbSIsImV4cCI6MTc3MzU4MTk0OH0.4zFod0NPGnWEn3a1Ythjz1n-mAJaNTnzv0l9uAXY9WM",
+    "user": {
+        "email": "carol@test.com",
+        "id": "ba607190-dbc3-430d-8dca-e7a7e63e91e9",
+        "username": "Carol"
+    },
+    "warning": "Save your private key now. It will never be shown again."
+}
+prashantsingh@helloworld:~/prashant_workspace/gigs/skit/digital_stamping$ 
+
+
+
+
+
+
+prashantsingh@helloworld:~/prashant_workspace/gigs/skit/digital_stamping$ 
+curl -s -X POST http://localhost:5000/api/v1/messages/forward/7c909254-4f53-4957-ae65-d09e0e8c536c \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiOTAyMDk1ZWYtMzlkYS00NjM3LTk5NTctNDA2NjRmNzFjZDY1IiwiZW1haWwiOiJib2JAdGVzdC5jb20iLCJleHAiOjE3NzM1ODEwNjl9.Ff_l-7yeONEdJnEpUv8CUmLze4A5dJmZiBZI4qhPoXI" \
+  -d '{"recipient":"carol@test.com","private_key":"-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCTOWjREyPKmLtH\nsd8s3mUYzeRP6pyBIzpEF9DYjonJoKOyj/0VqY1R9taGHxX7JIHjo45twHEOyrwR\n1QgPaB0e3CygsiMmIEXgAXiCkwCOYVk+N46PxW0aqsbbqlwnixZIH0jmNf6sen3R\nmXquPg0BCyDIiC/gn+sjkRzVJqmeCmCKK0u2qTOTn+H90MVExTlbmzlc17+SBEWZ\nLRNIQKnW+ZblF+nMJErTPHWDzz3trJ02jVrRnrfpw2oUS0Kk65LnQ7weGDJjKtR/\n831ECu/wrs8kTygyrZ6ECq6J0C6lDskNEMyFn9b4Er/7ZkPKeoBpispf8MPL5cpu\nzLTf34XvAgMBAAECggEAJkUqJg8foq6JIF3wca1uAkCjNNL70+XgY4r9Uw3aa3tC\nkkwzscndXo0Xvs2d3SbkTNRbVdRMj1fMA6ao7bhWuYrqXutvj52cDFrVhLvJzTkp\nBa9Tc7QSZHg4MSnbwru5Ew5u2Mj4ZsWAp1eKOHkQ0FCgOQCN0YpAiYJTSGVAekA7\nRNZi6beOVWhjUGJbcFE4mcYayhsl6vQKUEZ65WYcudncYRztki3fbWGLps3jxwBv\ncacMQfxd2iTgXn27ijzOSJlout7uexUaQtdBHJjpqga6KDEv5rB+gDxknZyGw+jt\nLny6o4QrtxOI7iYqY6Xpp8bjfI4huyKcYOrG34M2AQKBgQDLh8f3Di89OAi61v/g\n1ShVFA1XwDDPzyoetVtxntu640XS6t6wvc4reF1uw2e2RWksp9V9PvBC3YFvausL\nmuWwOgXH+enxBOBBZhQRv1B2dCEXzKwzf+hi888GQQsfksaXgJkFuQlBkmzMABPa\nJFOCreHCbp54pexrNlb251mxrwKBgQC5LaQSHfNR0+LCCdGdxNYKZzDD+brzwb2k\nRT31ZNsiSOWAXxCrdHfhCL/BM4xWWvYaobwqIpIWs2CJTrON5Uqzh+tnyPEa7dXi\ngSz1xOSyTfbIP7kxxRjx+vD9jCI4erG6EBNhF725tq9j0UKJPRQ3xaFJxO/7i9of\ng14AqAG/wQKBgG0TyPxD0tdZV3xiy2GAe4wVIg18R+ynVyh8A5UCETq4oOwnyc8o\n+fxcFp7NBKEv0+0FyanE+Fitg7flsjBXBHAMuJpy+oicF1+VSH42bPX+yNmLbGJx\nU2bsyW/Nnht+uwXo+pmRkD9fLQWrqPgI7eSkMdDVHgME0Y6n4bWTSYOrAoGAHs9R\nNRJ2oW63k8E+dxmA40o3+uNaD6R0gRhkLqgRLasjRDCM/XnrWC20edixyMxplhTC\n0d/enphJv46woTM9MpGywRnVw70+kOkdKecQhfoizT6M+ZLpi5lM72KZbvw7BdIW\n51ij4HpcxCbVAzB+ZKklJLj3lMq4B/Y7dbB+WgECgYEAlk2R+K0ej1uKMsMxeuej\nG0ME1Q4Qrc+s4gUQPxTwAe+7fNUXFCnmee9mXRa6HTtBGRLL6ZxxhvPGNC6CMQRB\nkjB1bYYWXbETDcU002cEj+d7cVPP5Uv52lpTtWWjDoQR2iB8vKlnjFP9hcJR+QCK  | python3 -m json.toolk=\n-----END PRIVATE KEY-----\n"}' \
+{
+    "block_index": 2,
+    "forwarded_to": "carol@test.com",
+    "hop_number": 1,
+    "message": "Message forwarded and recorded on blockchain",
+    "message_id": "7c909254-4f53-4957-ae65-d09e0e8c536c",
+    "stamp_id": "181efb12-3537-4e61-99bf-07afcf1c4b6e"
+}
+prashantsingh@helloworld:~/prashant_workspace/gigs/skit/digital_stamping$ 
+
+
+
+
+
+
+prashantsingh@helloworld:~/prashant_workspace/gigs/skit/digital_stamping$ 
+curl -s http://localhost:5000/api/v1/verify/spread/7c909254-4f53-4957-ae65-d09e0e8c536c \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiOTAyMDk1ZWYtMzlkYS00NjM3LTk5NTctNDA2NjRmNzFjZDY1IiwiZW1haWwiOiJib2JAdGVzdC5jb20iLCJleHAiOjE3NzM1ODEwNjl9.Ff_l-7yeONEdJnEpUv8CUmLze4A5dJmZiBZI4qhPoXI" \
+  | python3 -m json.tool
+{
+    "message_id": "7c909254-4f53-4957-ae65-d09e0e8c536c",
+    "origin": "alice@test.com",
+    "spread": [
+        {
+            "action": "SEND",
+            "block_index": 1,
+            "from_user": null,
+            "hop": 0,
+            "timestamp": "2026-03-14T18:57:30.773579+05:30",
+            "to_user": "alice@test.com"
+        },
+        {
+            "action": "FORWARD",
+            "block_index": 2,
+            "from_user": "bob@test.com",
+            "hop": 1,
+            "timestamp": "2026-03-14T19:10:00.339098+05:30",
+            "to_user": "carol@test.com"
+        }
+    ],
+    "total_hops": 1
+}
+prashantsingh@helloworld:~/prashant_workspace/gigs/skit/digital_stamping$ 
+
+
+
+
+
+prashantsingh@helloworld:~/prashant_workspace/gigs/skit/digital_stamping$ 
+
+curl -s http://localhost:5000/api/v1/verify/7c909254-4f53-4957-ae65-d09e0e8c536c \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiM2M3MzVlMDMtNDZiOC00YmFkLWIxOTUtNDU4ZTA2NjdmMTNkIiwiZW1haWwiOiJhbGljZUB0ZXN0LmNvbSIsImV4cCI6MTc3MzU4MDIwMn0.PFIk9ayPGAiAVT_vlgz4YAKt2YmWkDd6p-Nld8fJHp4" \
+  | python3 -m json.tool
+{
+    "checks": {
+        "block_valid": true,
+        "chain_hash_match": true,
+        "chain_valid": true,
+        "signature_valid": true
+    },
+    "message_hash": "28591cfa232a7bc550079c2f30ea5a89967a4399e52f59f13556146e92e6fc5f",
+    "message_id": "7c909254-4f53-4957-ae65-d09e0e8c536c",
+    "stamp": {
+        "block_index": 1,
+        "origin_device": "curl/8.5.0",
+        "origin_ip": "127.0.0.1",
+        "sender_email": "alice@test.com",
+        "sender_id": "3c735e03-46b8-4bad-b195-458e0667f13d",
+        "stamp_id": "5830475d-bf45-4a93-ae1c-e9b155b6f669",
+        "timestamp": "2026-03-14T18:57:30.776235+05:30"
+    },
+    "verdict": "VERIFIED"
+}
+prashantsingh@helloworld:~/prashant_workspace/gigs/skit/digital_stamping$ 
