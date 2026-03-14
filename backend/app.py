@@ -1,3 +1,6 @@
+from api.blockchain_routes import blockchain_bp
+from database.blockchain_store import load_chain, save_block
+from blockchain.blockchain import Blockchain
 from api.auth import auth_bp
 import os
 
@@ -27,9 +30,22 @@ def health():
 # M2 — Auth (uncomment when M2 is complete)
 app.register_blueprint(auth_bp, url_prefix="/api/v1/auth")
 
-# M3 — Blockchain routes (uncomment when M3 is complete)
-# from api.blockchain_routes import blockchain_bp
-# app.register_blueprint(blockchain_bp, url_prefix="/api/v1/blockchain")
+# M3 — Blockchain routes
+
+with app.app_context():
+    bc = load_chain()
+    if bc is None:
+        bc = Blockchain()
+        genesis = bc.create_genesis_block()
+        save_block(genesis)
+        print(f"[blockchain] Genesis block created: {genesis.hash[:16]}...")
+    else:
+        print(f"[blockchain] Loaded {bc.length()} blocks from DB")
+    app.config["BLOCKCHAIN"] = bc
+
+# M3 — Blockchain routes
+app.register_blueprint(blockchain_bp, url_prefix="/api/v1/blockchain")
+
 
 # M6 — Messages (uncomment when M6 is complete)
 # from api.messages import messages_bp
