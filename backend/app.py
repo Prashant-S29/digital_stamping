@@ -3,6 +3,7 @@ import os
 from config import config
 from flask import Flask, jsonify
 from flask_cors import CORS
+from database import models
 
 app = Flask(__name__)
 CORS(app, origins=config.ALLOWED_ORIGINS)
