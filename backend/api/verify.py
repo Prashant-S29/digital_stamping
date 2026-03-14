@@ -18,7 +18,6 @@ def _get_blockchain():
 # ---------------------------------------------------------------------------
 # Verify a message stamp
 # ---------------------------------------------------------------------------
-
 @verify_bp.route("/<message_id>", methods=["GET"])
 @require_auth
 def verify_message(message_id):
@@ -37,18 +36,23 @@ def verify_message(message_id):
         if not stamp:
             return jsonify({"error": "No stamp found for this message"}), 404
 
-        sender = db.query(User).filter(User.id == stamp.sender_id).first()
+        # sender = db.query(User).filter(User.id == stamp.sender_id).first()
+
+        import uuid as _uuid
+        sender = db.query(User).filter(User.id == str(stamp.sender_id)).first()
+
+        if not sender:
+            return jsonify({"error": f"Sender not found for stamp.sender_id={stamp.sender_id}"}), 404
 
         # ------------------------------------------------------------------
-        # Check 1 — Message hash integrity
-        # We can't decrypt without the private key here, so we verify the
-        # stored hash is present and matches what's on the blockchain block
+        # Fetch block — single loop, extract everything needed from it
         # ------------------------------------------------------------------
         bc = _get_blockchain()
         block = bc.get_block_by_index(stamp.block_index)
+
         block_valid = False
         chain_hash_match = False
-        original_timestamp = stamp.timestamp.isoformat()
+        original_timestamp = None   # must come from block, not DB
 
         if block:
             block_valid = block.hash == block.compute_hash()
@@ -59,42 +63,56 @@ def verify_message(message_id):
                         "message_hash") == message.message_hash
                     break
 
-        # ------------------------------------------------------------------
-        # Check 2 — RSA signature on stamp
-        # ------------------------------------------------------------------
-        # Get the original timestamp from the block transaction (exactly as it was signed)
-        original_timestamp = stamp.timestamp.isoformat()
-        if block:
-            for txn in block.transactions:
-                if txn.get("stamp_id") == str(stamp.id):
-                    original_timestamp = txn.get("timestamp")
-                    chain_hash_match = txn.get(
-                        "message_hash") == message.message_hash
-                    break
+        if not original_timestamp:
+            # Block lookup failed — fallback, verification will likely fail
+            original_timestamp = stamp.timestamp.isoformat()
 
+        # After extracting original_timestamp from block
+        print(f"[verify] stamp_id: {str(stamp.id)}")
+        print(f"[verify] sender_id: {str(stamp.sender_id)}")
+        print(f"[verify] message_hash: {message.message_hash}")
+        print(f"[verify] original_timestamp from block: {original_timestamp}")
+
+        # ------------------------------------------------------------------
+        # RSA signature verification
+        # Uses exact timestamp string from blockchain, not DB-converted version
+        # ------------------------------------------------------------------
         stamp_dict = {
-            "stamp_id":      str(stamp.id),
-            "message_id":    str(stamp.message_id),
-            "sender_id":     str(stamp.sender_id),
-            "message_hash":  message.message_hash,
-            # ← use blockchain version, not DB version
-            "timestamp":     original_timestamp,
-            "origin_ip":     stamp.origin_ip,
-            "origin_device": stamp.origin_device,
+            "stamp_id":     str(stamp.id),
+            "sender_id":    str(stamp.sender_id),
+            "message_hash": message.message_hash,
+            "timestamp":    original_timestamp,
         }
+
+        import json as _json
+        print(
+            f"[verify] payload to verify: {_json.dumps(stamp_dict, sort_keys=True)}")
+        print(f"[verify] rsa_signature: {stamp.rsa_signature[:40]}...")
+        print(f"[verify] public_key: {sender.public_key[:60]}...")
+        print(f"[verify] public_key repr: {repr(sender.public_key[:100])}")
+
+        print(f"[verify] message.sender_id: {str(message.sender_id)}")
+        print(f"[verify] stamp.sender_id: {str(stamp.sender_id)}")
+        print(
+            f"[verify] sender query result: {sender.email if sender else 'NOT FOUND'}")
+        print(
+            f"[verify] sender.public_key first 60: {sender.public_key[:60] if sender else 'NONE'}")
+        print(f"[verify] g.user_id (requester): {str(g.user_id)}")
+
         sig_valid = verify_stamp_signature(
             {**stamp_dict, "rsa_signature": stamp.rsa_signature},
             sender.public_key,
         )
+        print(f"[verify] sig_valid: {sig_valid}")
 
         # ------------------------------------------------------------------
-        # Check 3 — Full chain integrity
+        # Full chain integrity
         # ------------------------------------------------------------------
         chain_report = validate_chain(bc)
         chain_valid = chain_report["is_valid"]
 
         # ------------------------------------------------------------------
-        # Overall verdict
+        # Verdict
         # ------------------------------------------------------------------
         all_valid = sig_valid and block_valid and chain_hash_match and chain_valid
         verdict = "VERIFIED" if all_valid else "TAMPERED"
@@ -102,10 +120,10 @@ def verify_message(message_id):
         return jsonify({
             "verdict": verdict,
             "checks": {
-                "signature_valid":   sig_valid,
-                "block_valid":       block_valid,
-                "chain_hash_match":  chain_hash_match,
-                "chain_valid":       chain_valid,
+                "signature_valid":  sig_valid,
+                "block_valid":      block_valid,
+                "chain_hash_match": chain_hash_match,
+                "chain_valid":      chain_valid,
             },
             "stamp": {
                 "stamp_id":      str(stamp.id),
@@ -115,18 +133,19 @@ def verify_message(message_id):
                 "origin_device": stamp.origin_device,
                 "timestamp":     stamp.timestamp.isoformat(),
                 "block_index":   stamp.block_index,
+                "rsa_signature": stamp.rsa_signature,
             },
-            "message_id":  str(message.id),
+            "message_id":   str(message.id),
             "message_hash": message.message_hash,
         }), 200
 
     finally:
         db.close()
 
-
 # ---------------------------------------------------------------------------
 # Spread — full message journey
 # ---------------------------------------------------------------------------
+
 
 @verify_bp.route("/spread/<message_id>", methods=["GET"])
 @require_auth

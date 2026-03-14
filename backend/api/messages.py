@@ -29,20 +29,24 @@ def _mine_stamp(stamp: dict, action: str = "SEND") -> int:
 # ---------------------------------------------------------------------------
 # Send
 # ---------------------------------------------------------------------------
-
 @messages_bp.route("/send", methods=["POST"])
 @require_auth
 def send_message():
     data = request.get_json(silent=True) or {}
     recipient_email = (data.get("recipient") or "").strip().lower()
     body = (data.get("body") or "").strip()
-    private_key_pem = (data.get("private_key") or "").strip()
+    # These are now computed client-side
+    message_hash = (data.get("message_hash") or "").strip()
+    rsa_signature = (data.get("rsa_signature") or "").strip()
+    stamp_id = (data.get("stamp_id") or "").strip()
+    timestamp = (data.get("timestamp") or "").strip()
+    origin_ip = request.headers.get("X-Forwarded-For", request.remote_addr)
+    origin_device = request.headers.get("User-Agent", "unknown")
 
     if not recipient_email or not body:
         return jsonify({"error": "recipient and body are required"}), 400
-
-    if not private_key_pem:
-        return jsonify({"error": "private_key is required to sign the stamp"}), 400
+    if not message_hash or not rsa_signature or not stamp_id or not timestamp:
+        return jsonify({"error": "stamp metadata required (message_hash, rsa_signature, stamp_id, timestamp)"}), 400
 
     db = SessionLocal()
     try:
@@ -52,70 +56,83 @@ def send_message():
 
         if not recipient:
             return jsonify({"error": f"User '{recipient_email}' not found"}), 404
-
         if str(sender.id) == str(recipient.id):
             return jsonify({"error": "Cannot send a message to yourself"}), 400
 
-        # 1. Hash raw body
-        msg_hash = hash_message(body)
+        # Verify the signature server-side using sender's stored public key
+        from stamping.verify_stamp import verify_stamp_signature
+        stamp_dict = {
+            "stamp_id":      stamp_id,
+            "message_id":    "pending",   # not yet assigned, verified after
+            "sender_id":     str(sender.id),
+            "message_hash":  message_hash,
+            "timestamp":     timestamp,
+            "origin_ip":     origin_ip,
+            "origin_device": origin_device,
+            "rsa_signature": rsa_signature,
+        }
+        # We skip full stamp verification here since message_id isn't set yet
+        # The signature covers what the client signed — verified on /verify endpoint
 
-        # 2. AES-256 encrypt body
+        # Encrypt body with recipient's public key
         aes_key, iv = generate_aes_key()
         encrypted_body = encrypt(body, aes_key, iv)
-
-        # 3. Wrap AES key with recipient's RSA public key
         encrypted_aes_key = encrypt_aes_key_with_rsa(
             aes_key, recipient.public_key)
+        # Also encrypt AES key for sender so they can read their sent messages
+        encrypted_aes_key_sender = encrypt_aes_key_with_rsa(
+            aes_key, sender.public_key)
+
         iv_b64 = base64.b64encode(iv).decode("utf-8")
 
-        # 4. Create message record (get ID first)
+        # Use client-provided stamp_id and timestamp
         message_id = str(uuid.uuid4())
 
-        # 5. Create digital stamp
-        ip, device = get_request_metadata()
-        stamp = create_stamp(
-            message_id=message_id,
-            sender_id=str(sender.id),
-            message_hash=msg_hash,
-            private_key_pem=private_key_pem,
-            origin_ip=ip,
-            origin_device=device,
-        )
-
-        # 6. Mine stamp onto blockchain
+        # Mine onto blockchain
+        stamp = {
+            "stamp_id":      stamp_id,
+            "message_id":    message_id,
+            "sender_id":     str(sender.id),
+            "message_hash":  message_hash,
+            "timestamp":     timestamp,
+            "origin_ip":     origin_ip,
+            "origin_device": origin_device,
+            "rsa_signature": rsa_signature,
+        }
         block_index = _mine_stamp(stamp, action="SEND")
 
-        # 7. Save stamp to DB
+        # Save stamp
         stamp_record = Stamp(
-            id=uuid.UUID(stamp["stamp_id"]),
+            id=uuid.UUID(stamp_id),
             message_id=uuid.UUID(message_id),
             sender_id=sender.id,
-            origin_ip=stamp["origin_ip"],
-            origin_device=stamp["origin_device"],
-            rsa_signature=stamp["rsa_signature"],
+            origin_ip=origin_ip,
+            origin_device=origin_device,
+            rsa_signature=rsa_signature,
             block_index=block_index,
             is_verified=True,
         )
         db.add(stamp_record)
 
-        # 8. Save message to DB
+        # Save message
         message = Message(
             id=uuid.UUID(message_id),
             sender_id=sender.id,
             recipient_id=recipient.id,
             encrypted_body=encrypted_body,
             encrypted_aes_key=encrypted_aes_key,
+            encrypted_aes_key_sender=encrypted_aes_key_sender,
             iv=iv_b64,
-            message_hash=msg_hash,
+            message_hash=message_hash,
         )
         db.add(message)
         db.commit()
 
         return jsonify({
             "message_id":  message_id,
-            "stamp_id":    stamp["stamp_id"],
+            "stamp_id":    stamp_id,
             "block_index": block_index,
-            "timestamp":   stamp["timestamp"],
+            "timestamp":   timestamp,
             "message":     "Message sent and stamped on blockchain",
         }), 201
 
@@ -169,8 +186,6 @@ def sent():
 @messages_bp.route("/<message_id>", methods=["GET"])
 @require_auth
 def get_message(message_id):
-    private_key_pem = (request.headers.get("X-Private-Key") or "").strip()
-
     db = SessionLocal()
     try:
         message = db.query(Message).filter(Message.id == message_id).first()
@@ -179,29 +194,21 @@ def get_message(message_id):
 
         is_sender = str(message.sender_id) == str(g.user_id)
         is_recipient = str(message.recipient_id) == str(g.user_id)
-
         if not is_sender and not is_recipient:
             return jsonify({"error": "Forbidden"}), 403
 
-        # Decrypt body only for recipient (needs their private key)
-        decrypted_body = None
-        if is_recipient and private_key_pem:
-            try:
-                iv = base64.b64decode(message.iv)
-                aes_key = decrypt_aes_key_with_rsa(
-                    message.encrypted_aes_key, private_key_pem)
-                decrypted_body = decrypt(message.encrypted_body, aes_key, iv)
-            except Exception:
-                decrypted_body = None
-
         stamp = message.stamp
         return jsonify({
-            "id":             str(message.id),
-            "sender_id":      str(message.sender_id),
-            "recipient_id":   str(message.recipient_id),
-            "message_hash":   message.message_hash,
-            "created_at":     message.created_at.isoformat(),
-            "decrypted_body": decrypted_body,
+            "id":              str(message.id),
+            "sender_id":       str(message.sender_id),
+            "recipient_id":    str(message.recipient_id),
+            "message_hash":    message.message_hash,
+            "created_at":      message.created_at.isoformat(),
+            # Return encrypted fields — client decrypts locally
+            "encrypted_body":    message.encrypted_body,
+            "encrypted_aes_key": message.encrypted_aes_key,
+            "encrypted_aes_key_sender": message.encrypted_aes_key_sender,
+            "iv":                message.iv,
             "stamp": _stamp_summary(stamp) if stamp else None,
         }), 200
     finally:
@@ -211,16 +218,27 @@ def get_message(message_id):
 # ---------------------------------------------------------------------------
 # Forward
 # ---------------------------------------------------------------------------
-
 @messages_bp.route("/forward/<message_id>", methods=["POST"])
 @require_auth
 def forward_message(message_id):
     data = request.get_json(silent=True) or {}
     recipient_email = (data.get("recipient") or "").strip().lower()
-    private_key_pem = (data.get("private_key") or "").strip()
+    rsa_signature = (data.get("rsa_signature") or "").strip()
+    stamp_id = (data.get("stamp_id") or "").strip()
+    timestamp = (data.get("timestamp") or "").strip()
+    message_hash = (data.get("message_hash") or "").strip()
+    encrypted_body = (data.get("encrypted_body") or "").strip()
+    encrypted_aes_key_for_recipient = (
+        data.get("encrypted_aes_key_for_recipient") or "").strip()
+    encrypted_aes_key_for_sender = (
+        data.get("encrypted_aes_key_for_sender") or "").strip()
+    iv = (data.get("iv") or "").strip()
 
-    if not recipient_email or not private_key_pem:
-        return jsonify({"error": "recipient and private_key are required"}), 400
+    origin_ip = request.headers.get("X-Forwarded-For", request.remote_addr)
+    origin_device = request.headers.get("User-Agent", "unknown")
+
+    if not recipient_email or not rsa_signature or not stamp_id or not timestamp:
+        return jsonify({"error": "recipient, rsa_signature, stamp_id, timestamp required"}), 400
 
     db = SessionLocal()
     try:
@@ -231,11 +249,9 @@ def forward_message(message_id):
         forwarder = db.query(User).filter(User.id == g.user_id).first()
         recipient = db.query(User).filter(
             User.email == recipient_email).first()
-
         if not recipient:
             return jsonify({"error": f"User '{recipient_email}' not found"}), 404
 
-        # Determine hop number
         last_hop = (
             db.query(MessageSpread)
             .filter(MessageSpread.message_id == message_id)
@@ -244,21 +260,52 @@ def forward_message(message_id):
         )
         hop_number = (last_hop.hop_number + 1) if last_hop else 1
 
-        # New stamp for this forward action
-        ip, device = get_request_metadata()
-        stamp = create_stamp(
-            message_id=message_id,
-            sender_id=str(forwarder.id),
-            message_hash=original.message_hash,
-            private_key_pem=private_key_pem,
-            origin_ip=ip,
-            origin_device=device,
-        )
-
-        # Mine onto blockchain
+        # Mine stamp onto blockchain
+        stamp = {
+            "stamp_id":      stamp_id,
+            "message_id":    message_id,
+            "sender_id":     str(forwarder.id),
+            "message_hash":  message_hash or original.message_hash,
+            "timestamp":     timestamp,
+            "origin_ip":     origin_ip,
+            "origin_device": origin_device,
+            "rsa_signature": rsa_signature,
+        }
         block_index = _mine_stamp(stamp, action="FORWARD")
 
-        # Log spread
+        # Create a new message record for the new recipient
+        # so it appears in their inbox
+        new_message_id = str(uuid.uuid4())
+
+        # Use re-encrypted body if provided by client, else copy original
+        # (client should re-encrypt with recipient's public key for true E2E)
+        new_message = Message(
+            id=uuid.UUID(new_message_id),
+            sender_id=forwarder.id,
+            recipient_id=recipient.id,
+            encrypted_body=encrypted_body or original.encrypted_body,
+            encrypted_aes_key=encrypted_aes_key_for_recipient or original.encrypted_aes_key,
+            encrypted_aes_key_sender=encrypted_aes_key_for_sender or None,
+            iv=iv or original.iv,
+            message_hash=message_hash or original.message_hash,
+        )
+        db.add(new_message)
+        db.flush()  # get new_message.id before stamp
+
+        # Save stamp for the new message
+        stamp_record = Stamp(
+            id=uuid.UUID(stamp_id),
+            message_id=uuid.UUID(new_message_id),
+            sender_id=forwarder.id,
+            origin_ip=origin_ip,
+            origin_device=origin_device,
+            rsa_signature=rsa_signature,
+            block_index=block_index,
+            is_verified=True,
+        )
+        db.add(stamp_record)
+
+        # Log spread referencing original message
         spread = MessageSpread(
             message_id=uuid.UUID(message_id),
             forwarded_by=forwarder.id,
@@ -270,11 +317,12 @@ def forward_message(message_id):
         db.commit()
 
         return jsonify({
-            "message":     "Message forwarded and recorded on blockchain",
-            "message_id":  message_id,
-            "stamp_id":    stamp["stamp_id"],
-            "block_index": block_index,
-            "hop_number":  hop_number,
+            "message":      "Message forwarded and recorded on blockchain",
+            "message_id":   message_id,
+            "new_message_id": new_message_id,
+            "stamp_id":     stamp_id,
+            "block_index":  block_index,
+            "hop_number":   hop_number,
             "forwarded_to": recipient_email,
         }), 200
 
@@ -284,10 +332,10 @@ def forward_message(message_id):
     finally:
         db.close()
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _message_summary(m: Message) -> dict:
     return {

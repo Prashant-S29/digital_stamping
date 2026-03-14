@@ -3,7 +3,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 type RequestOptions = {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
   body?: unknown;
-  token?: string;
+  token?: string | null;
 };
 
 export class ApiError extends Error {
@@ -37,22 +37,25 @@ async function request<T>(
   const data = await res.json().catch(() => ({}));
 
   if (!res.ok) {
-    throw new ApiError(data?.message || 'Request failed', res.status);
+    throw new ApiError(
+      data?.message || data?.error || 'Request failed',
+      res.status,
+    );
   }
 
   return data as T;
 }
 
 export const api = {
-  get: <T>(endpoint: string, token?: string) =>
+  get: <T>(endpoint: string, token?: string | null) =>
     request<T>(endpoint, { method: 'GET', token }),
 
-  post: <T>(endpoint: string, body: unknown, token?: string) =>
+  post: <T>(endpoint: string, body: unknown, token?: string | null) =>
     request<T>(endpoint, { method: 'POST', body, token }),
 
-  put: <T>(endpoint: string, body: unknown, token?: string) =>
+  put: <T>(endpoint: string, body: unknown, token?: string | null) =>
     request<T>(endpoint, { method: 'PUT', body, token }),
 
-  delete: <T>(endpoint: string, token?: string) =>
+  delete: <T>(endpoint: string, token?: string | null) =>
     request<T>(endpoint, { method: 'DELETE', token }),
 };

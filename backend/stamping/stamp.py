@@ -24,23 +24,24 @@ def create_stamp(
     stamp_id = str(uuid.uuid4())
     timestamp = datetime.now(timezone.utc).isoformat()
 
-    # Core payload — this is what gets signed
     payload = {
         "stamp_id":     stamp_id,
-        "message_id":   message_id,
         "sender_id":    sender_id,
         "message_hash": message_hash,
         "timestamp":    timestamp,
-        "origin_ip":    origin_ip,
-        "origin_device": origin_device,
     }
 
-    # Sign the deterministic JSON string of the payload
     payload_str = json.dumps(payload, sort_keys=True)
     rsa_signature = sign(payload_str, private_key_pem)
 
     return {
-        **payload,
+        "stamp_id":      stamp_id,
+        "message_id":    message_id,
+        "sender_id":     sender_id,
+        "message_hash":  message_hash,
+        "timestamp":     timestamp,
+        "origin_ip":     origin_ip,
+        "origin_device": origin_device,
         "rsa_signature": rsa_signature,
     }
 

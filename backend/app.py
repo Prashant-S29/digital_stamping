@@ -7,7 +7,7 @@ from api.auth import auth_bp
 import os
 
 from config import config
-from flask import Flask, jsonify
+from flask import request, jsonify, Flask
 from flask_cors import CORS
 from database import models
 
@@ -93,6 +93,7 @@ def server_error(e):
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=config.PORT, debug=config.DEBUG)

@@ -24,10 +24,13 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), default=now_utc)
 
     sent_messages = relationship(
-        "Message", foreign_keys="Message.sender_id",    back_populates="sender")
+        "Message", foreign_keys="Message.sender_id",    back_populates="sender",
+        cascade="all, delete-orphan")
     received_messages = relationship(
-        "Message", foreign_keys="Message.recipient_id", back_populates="recipient")
-    stamps = relationship("Stamp",   back_populates="sender")
+        "Message", foreign_keys="Message.recipient_id", back_populates="recipient",
+        cascade="all, delete-orphan")
+    stamps = relationship("Stamp", back_populates="sender",
+                          cascade="all, delete-orphan")
 
 
 class Message(Base):
@@ -35,11 +38,12 @@ class Message(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     sender_id = Column(UUID(as_uuid=True), ForeignKey(
-        "users.id"), nullable=False)
+        "users.id", ondelete="CASCADE"), nullable=False)
     recipient_id = Column(UUID(as_uuid=True),
-                          ForeignKey("users.id"), nullable=False)
+                          ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     encrypted_body = Column(Text, nullable=False)
     encrypted_aes_key = Column(Text, nullable=False)
+    encrypted_aes_key_sender = Column(Text, nullable=True)
     iv = Column(String(64), nullable=False)
     message_hash = Column(String(64), nullable=False)
     created_at = Column(DateTime(timezone=True), default=now_utc)
@@ -48,8 +52,10 @@ class Message(Base):
                           sender_id],    back_populates="sent_messages")
     recipient = relationship("User", foreign_keys=[
                              recipient_id], back_populates="received_messages")
-    stamp = relationship("Stamp", back_populates="message", uselist=False)
-    spread = relationship("MessageSpread", back_populates="message")
+    stamp = relationship("Stamp", back_populates="message", uselist=False,
+                         cascade="all, delete-orphan")
+    spread = relationship("MessageSpread", back_populates="message",
+                          cascade="all, delete-orphan")
 
 
 class Stamp(Base):
@@ -57,9 +63,9 @@ class Stamp(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     message_id = Column(UUID(as_uuid=True), ForeignKey(
-        "messages.id"), nullable=True)
+        "messages.id", ondelete="CASCADE"), nullable=True)
     sender_id = Column(UUID(as_uuid=True), ForeignKey(
-        "users.id"),    nullable=False)
+        "users.id", ondelete="CASCADE"), nullable=False)
     origin_ip = Column(String(64),  nullable=True)
     origin_device = Column(Text,        nullable=True)
     timestamp = Column(DateTime(timezone=True), default=now_utc)
@@ -76,11 +82,11 @@ class MessageSpread(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     message_id = Column(UUID(as_uuid=True), ForeignKey(
-        "messages.id"), nullable=False)
+        "messages.id", ondelete="CASCADE"), nullable=False)
     forwarded_by = Column(UUID(as_uuid=True), ForeignKey(
-        "users.id"),    nullable=False)
+        "users.id", ondelete="CASCADE"), nullable=False)
     forwarded_to = Column(UUID(as_uuid=True), ForeignKey(
-        "users.id"),    nullable=False)
+        "users.id", ondelete="CASCADE"), nullable=False)
     forwarded_at = Column(DateTime(timezone=True), default=now_utc)
     hop_number = Column(Integer, nullable=False, default=1)
     block_index = Column(Integer, nullable=True)

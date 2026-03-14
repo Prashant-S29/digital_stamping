@@ -1,6 +1,6 @@
-import base64
-from cryptography.hazmat.primitives.asymmetric import rsa, padding
+from cryptography.hazmat.primitives.asymmetric import rsa, padding as asym_padding
 from cryptography.hazmat.primitives import hashes, serialization
+import base64
 
 
 def generate_key_pair() -> tuple[str, str]:
@@ -9,7 +9,6 @@ def generate_key_pair() -> tuple[str, str]:
         public_exponent=65537,
         key_size=2048,
     )
-
     private_key_pem = private_key.private_bytes(
         encoding=serialization.Encoding.PEM,
         format=serialization.PrivateFormat.PKCS8,
@@ -25,38 +24,29 @@ def generate_key_pair() -> tuple[str, str]:
 
 
 def sign(data: str, private_key_pem: str) -> str:
-    """Sign data with RSA private key. Returns base64 signature string."""
+    """Sign with PKCS1-v1_5 — matches WebCrypto RSASSA-PKCS1-v1_5."""
     private_key = serialization.load_pem_private_key(
         private_key_pem.encode("utf-8"),
         password=None,
     )
-
     signature = private_key.sign(
         data.encode("utf-8"),
-        padding.PSS(
-            mgf=padding.MGF1(hashes.SHA256()),
-            salt_length=padding.PSS.MAX_LENGTH,
-        ),
+        asym_padding.PKCS1v15(),
         hashes.SHA256(),
     )
-
     return base64.b64encode(signature).decode("utf-8")
 
 
 def verify(data: str, signature_b64: str, public_key_pem: str) -> bool:
-    """Verify RSA signature. Returns True if valid, False if tampered."""
+    """Verify with PKCS1-v1_5 — matches WebCrypto RSASSA-PKCS1-v1_5."""
     try:
         public_key = serialization.load_pem_public_key(
             public_key_pem.encode("utf-8")
         )
-
         public_key.verify(
             base64.b64decode(signature_b64),
             data.encode("utf-8"),
-            padding.PSS(
-                mgf=padding.MGF1(hashes.SHA256()),
-                salt_length=padding.PSS.MAX_LENGTH,
-            ),
+            asym_padding.PKCS1v15(),
             hashes.SHA256(),
         )
         return True
