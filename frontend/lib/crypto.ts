@@ -61,9 +61,13 @@ export async function createStamp(
 }> {
   const stamp_id = crypto.randomUUID();
   const timestamp = new Date().toISOString();
-  const message_hash = messageBody
-    ? await sha256(messageBody)
-    : await sha256(stamp_id);
+  
+  if (!messageBody) throw new Error('messageBody is required for createStamp');
+  const message_hash = await sha256(messageBody);
+
+  // const message_hash = messageBody
+  //   ? await sha256(messageBody)
+  //   : await sha256(stamp_id);
 
   // Only sign fields that are known client-side AND stable server-side
   // Do NOT include message_id (unknown at sign time), origin_ip, origin_device (set server-side)

@@ -11,7 +11,7 @@ import { useAuth } from '@/app/providers';
 import { NoKeyBanner } from '@/components/NoKeyBanner';
 
 import { useMessage, useForwardMessage } from '@/lib/queries';
-import { createStamp } from '@/lib/crypto';
+import { signPayload } from '@/lib/crypto';
 
 export default function MessageDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -51,37 +51,36 @@ export default function MessageDetailPage() {
       .catch(() => setDecryptedBody(null));
   }, [msg, privateKey, user]);
 
+  
+  
   const handleForward = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!privateKey) {
-      router.push('/profile');
-      return;
-    }
-    if (!msg) {
-      setFwdError('Message not found');
-      return;
-    }
-
+    if (!privateKey) { router.push('/profile'); return; }
+    if (!msg) { setFwdError('Message not found'); return; }
+  
     try {
-      const stamp = await createStamp(user!.id, '', privateKey);
-
+      const stamp_id = crypto.randomUUID();
+      const timestamp = new Date().toISOString();
+      const message_hash = msg.message_hash;
+  
+      const rsa_signature = await signPayload(
+        { stamp_id, sender_id: user!.id, message_hash, timestamp },
+        privateKey,
+      );
+  
       const res = await forward.mutateAsync({
         id,
         recipient,
-        rsa_signature: stamp.rsa_signature,
-        stamp_id: stamp.stamp_id,
-        timestamp: stamp.timestamp,
-        message_hash: msg.message_hash,
-        // Pass existing encrypted fields — backend copies them for new recipient
-        // True re-encryption would require fetching recipient's public key first
+        rsa_signature,
+        stamp_id,
+        timestamp,
+        message_hash,
         encrypted_body: msg.encrypted_body,
         encrypted_aes_key_for_sender: msg.encrypted_aes_key_sender ?? '',
         iv: msg.iv,
       });
-
-      setFwdSuccess(
-        `Forwarded to ${res.forwarded_to} — block #${res.block_index}`,
-      );
+  
+      setFwdSuccess(`Forwarded to ${res.forwarded_to} — block #${res.block_index}`);
       setShowForward(false);
       setRecipient('');
     } catch (err: unknown) {
